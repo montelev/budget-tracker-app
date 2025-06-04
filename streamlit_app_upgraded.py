@@ -23,24 +23,29 @@ def guess_category(description):
     return "Other"
 
 def extract_pdf_transactions(uploaded_pdf):
+    import fitz
+    import re
+
     text = ""
     with fitz.open(stream=uploaded_pdf.read(), filetype="pdf") as doc:
         for page in doc:
             text += page.get_text()
 
-    pattern = r"(\d{2}/\d{2}/\d{2}).+?(?<![A-Z])([A-Za-z0-9 \*\-\&']{5,40})\s+-?\$?(-?\d{1,4}\.\d{2})"
+    # Match lines like: 05/12/25 AMAZON MKTPL*NI4B ... -85.18
+    pattern = r"(\\d{2}/\\d{2}/\\d{2})\\s+(.*?)\\s+(-\\d+\\.\\d{2})"
     matches = re.findall(pattern, text)
 
     data = []
     for date, description, amount in matches:
         try:
-            amount = float(amount.replace("$", "").replace(",", ""))
+            amount = float(amount)
             category = guess_category(description)
             data.append((date.strip(), description.strip(), category, amount))
         except:
             continue
 
     return pd.DataFrame(data, columns=["Date", "Description", "Category", "Amount"])
+
 
 upload_type = st.radio("Choose your upload type:", ["CSV Upload", "Bank PDF Statement"])
 
